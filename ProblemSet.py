@@ -461,12 +461,6 @@ def exhaustive_search(input_grid: Grid, output_grid: Grid) -> List[List[Dict]]:
     # return strategies
 
 def create_solution_candidates(input_grid: Grid, output_grid: Grid):
-    # solution_candidates = []
-
-    # for candidate in exhaustive_search(input_grid, output_grid):
-    #     if check_input_output(input_grid, candidate, output_grid):
-    #         solution_candidates.append(candidate)
-    # return solution_candidates
     return exhaustive_search(input_grid, output_grid)
 
 def resolve_solution_candidates(problem_to_solution_candidates: Dict[int, List[List[Dict]]]):

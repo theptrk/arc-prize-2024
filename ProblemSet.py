@@ -117,15 +117,19 @@ class Grid:
                     shapes.append(sorted(shape))
         return sorted(shapes)
 
-    def find_all_possible_movements(self, shape: Shape) -> List[Shape]:
+    def find_all_possible_movements(self, shape: Shape) -> List[Tuple[int, int]]:
+        print("fn find_all_possible_movements")
+        if isinstance(shape, list):
+            shape = Shape(shape)
+
         # Calculate the dimensions of the shape
         min_row = min(x for x, _ in shape.positions)
         max_row = max(x for x, _ in shape.positions)
         min_col = min(y for _, y in shape.positions)
         max_col = max(y for _, y in shape.positions)
 
-        print(f"shape: {shape.positions}")
-        print(f"min_row: {min_row}, max_row: {max_row}, min_col: {min_col}, max_col: {max_col}")
+        # print(f"shape: {shape.positions}")
+        # print(f"min_row: {min_row}, max_row: {max_row}, min_col: {min_col}, max_col: {max_col}")
 
         # grid_with_shape = paint_1d_to_2d_grid(shape, color=5, grid=original_grid)
         # printrows(grid_with_shape)
@@ -136,7 +140,7 @@ class Grid:
         # Note the x is the x axis and movement denotes height
         shape_width = max_col - min_col + 1
         shape_height = max_row - min_row + 1
-        print(f"shape width: {shape_width}, shape height: {shape_height}")
+        # print(f"shape width: {shape_width}, shape height: {shape_height}")
 
         # Calculate the dimensions of the original grid
         original_grid = self.grid
@@ -158,7 +162,7 @@ class Grid:
         # 5 5 5 0   <- min_col=index 0, grid_width=4 so it can move 4 right without falling off (4 movement)
         # formula (grid_width-1) - min_col
         col_positive_move_limit = (grid_width-1) - min_col
-        print(f"col_negative_move_limit: {col_negative_move_limit}, col_positive_move_limit: {col_positive_move_limit}")
+        # print(f"col_negative_move_limit: {col_negative_move_limit}, col_positive_move_limit: {col_positive_move_limit}")
 
         row_negative_move_limit = -(shape_height)
         # Note y axis movement depends on the bottommost row position
@@ -171,17 +175,16 @@ class Grid:
         # y_axis_positive = (grid_height - 1) - min_row which is (4 - 1)=3-1 = 2
         row_negative_move_limit = -(max_row)
         row_positive_move_limit = (grid_height - 1) - min_row
-        print(f"row_negative_move_limit: {row_negative_move_limit}, row_positive_move_limit: {row_positive_move_limit}")
-        print(shape.positions)
+        # print(f"row_negative_move_limit: {row_negative_move_limit}, row_positive_move_limit: {row_positive_move_limit}")
         for d_row in range(row_negative_move_limit, row_positive_move_limit+1):  # Adjusted to allow upward movement
             for d_col in range(col_negative_move_limit, col_positive_move_limit+1):
 
                 # we need to check if the shape is still showing on the grid
                 # because an oblong shape can move to the extremes of left, top and no longer be visible
                 # how to check: apply the movement to the shape and check if any of the shape's positions are out of bounds or on a 0
-                print(f"checking visibiilty for {d_row}, {d_col}")
+                # print(f"checking visibiilty for {d_row}, {d_col}")
                 if self.is_any_part_visible(shape, d_row, d_col):
-                    possible_movements.append((d_row, d_col))
+                    possible_movements.append([d_row, d_col])
 
         return possible_movements
 
@@ -235,13 +238,7 @@ class Example:
         # return f"Example(input={self.input}, output={self.output})"
 
     def display(self):
-        # print("input:")
-        # self.input.display()
-        # if self.output:
-        #     print("output:")
-        #     self.output.display()
-        # else:
-        #     print("no output:")
+        input_rows = self.input.grid
         input_rows = self.input.grid
         output_rows = self.output.grid if self.output else None
 
@@ -367,6 +364,7 @@ def predict_list(input_grids: List[Grid], transforms: List[Dict]) -> List[Grid]:
     return [predict(input_grid, transforms) for input_grid in input_grids]
 
 def predict(input_grid: Grid, raw_transforms: List[Dict]) -> Grid:
+    print(f"predicting {raw_transforms}")
     result_grid = Grid(input_grid.copy_raw())
 
     for raw_transform in raw_transforms:
@@ -375,7 +373,16 @@ def predict(input_grid: Grid, raw_transforms: List[Dict]) -> Grid:
         match name:
             case "move_all_shapes":
                 for shape in result_grid.shapes_any_color_8d:
-                    result_grid = result_grid.move_shape(shape, args[0], args[1])
+                    row_delta = args[0]
+                    col_delta = args[1]
+                    result_grid = result_grid.move_shape(shape, row_delta, col_delta)
+            case "move_shape":
+                for shape in result_grid.shapes_any_color_8d:
+                    color = args[0]
+                    if shape.color_set == set([color]):
+                        row_delta = args[1]
+                        col_delta = args[2]
+                        result_grid = result_grid.move_shape(shape, row_delta, col_delta)
             case "move_shape_type":
                 # TODO: Implement moving a specific shape type
                 pass
@@ -418,28 +425,49 @@ def xcheck_improved(input_grid: Grid, output_grid: Grid, raw_transforms: List[Di
 
 
 def exhaustive_search(input_grid: Grid, output_grid: Grid) -> List[List[Dict]]:
+    print("fn exhaustive_search")
     strategies = []
+    strategies_set = set()
     # does moving all shapes down by 1 row work?
     # strategies.append([{"name": "move_all_shapes", "args": (1, 0)}])
     # does moving all shapes down by 1 row and right by 1 column work?
     # strategies.append([{"name": "move_all_shapes", "args": (1, 1)}])
 
     # check all movements
+
+    # FIXME: note this is checking that the movement of some shape
+    # becomes the movement of ALL shapes because it uses "move_all_shapes"
+    # To add nuance:
+    # - this should be the movement of this shape color, type, etc.
     for shape in input_grid.find_shapes_any_color():
         possible_movements = input_grid.find_all_possible_movements(shape)
         for movement in possible_movements:
-            strategies.append([{"name": "move_all_shapes", "args": movement}])
+            # strategies.append([{"name": "move_all_shapes", "args": movement}])
+            # first check if this is a "perfect" move
+            # print(f"checking movement: {movement}")
+            import json
+            single_move = [{"name": "move_all_shapes", "args": movement}]
+            json_string = json.dumps(single_move)
+            if check_input_output(input_grid, single_move, output_grid):
+                strategies_set.add(json_string)
+                print(f"⭐️ found perfect move: {movement}")
+                strategies.append(single_move)
 
-
-    return strategies
+    print(list(strategies_set))
+    deduplicated_strategies = [json.loads(strat) for strat in list(strategies_set)]
+    print("deduplicated_strategies", deduplicated_strategies)
+    return deduplicated_strategies
+    # print(f"strategies: {strategies}")
+    # return strategies
 
 def create_solution_candidates(input_grid: Grid, output_grid: Grid):
-    solution_candidates = []
+    # solution_candidates = []
 
-    for candidate in exhaustive_search(input_grid, output_grid):
-        if check_input_output(input_grid, candidate, output_grid):
-            solution_candidates.append(candidate)
-    return solution_candidates
+    # for candidate in exhaustive_search(input_grid, output_grid):
+    #     if check_input_output(input_grid, candidate, output_grid):
+    #         solution_candidates.append(candidate)
+    # return solution_candidates
+    return exhaustive_search(input_grid, output_grid)
 
 def resolve_solution_candidates(problem_to_solution_candidates: Dict[int, List[List[Dict]]]):
     pass

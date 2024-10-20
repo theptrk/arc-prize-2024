@@ -1,8 +1,11 @@
 import pytest
 from ProblemSet import Grid, Example, Problem, ProblemSet, Shape, Transform, Agent, check_input_output, create_solution_candidates, get_universal_solution
 
-def sorted_equal(list1, list2):
-    return sorted([sorted(sublist) for sublist in list1]) == sorted([sorted(sublist) for sublist in list2])
+def sorted_equal(item_list1, item_list2):
+    if isinstance(item_list1[0], list):
+        return sorted([sorted(sublist) for sublist in item_list1]) == sorted([sorted(sublist) for sublist in item_list2])
+    else:
+        return sorted(item_list1) == sorted(item_list2)
 
 def test_grid_init():
     grid = Grid([[1, 0], [0, 0]])
@@ -57,17 +60,19 @@ def test_find_shapes_any_color():
     assert sorted_equal(grid.find_shapes_any_color(), [[(0, 2), (1, 1), (2, 0), (2, 1), (2, 2)]])
     assert grid.shapes_any_color_8d == [[(0, 2), (1, 1), (2, 0), (2, 1), (2, 2)]]
 
+def test_find_wall_among_shapes():
+    pass
+
 def test_find_all_possible_movements():
     grid = Grid([[0,0,0],
                  [0,1,0]])
     shape = Shape([(1, 1)])
-    assert grid.find_all_possible_movements(shape) == [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 0), (0, 1)]
+    assert grid.find_all_possible_movements(shape) == [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 0], [0, 1]]
 
     grid = Grid([[1,0,0],
                  [1,1,0]])
     shape = Shape([(0, 0), (1, 0), (1, 1)])
-    print(grid.find_all_possible_movements(shape))
-    assert grid.find_all_possible_movements(shape) == [(-1, -1), (-1, 0), (-1, 1), (-1, 2), (0, -1), (0, 0), (0, 1), (0, 2), (1, 0), (1, 1), (1, 2)]
+    assert grid.find_all_possible_movements(shape) == [[-1, -1], [-1, 0], [-1, 1], [-1, 2], [0, -1], [0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]]
 
 def test_move_shape():
     # single shape, single move
@@ -229,10 +234,52 @@ def test_problem_set_repr(problem_set):
 
 
 
-# def test_create_solution_candidates():
-#     input_grid = Grid([[1, 0]])
-#     output_grid = Grid([[0, 1]])
-#     assert create_solution_candidates(input_grid, output_grid) == [{"name": "move_all_shapes", "args": (1, 0)}]
+def test_create_solution_candidates_for_movement():
+    input_grid = Grid([[1, 1, 0, 1],
+                       [1, 0, 0, 0],
+                       [0, 0, 0, 0]])
+    # move 1 row down
+    output_grid = Grid([[0, 0, 0, 0],
+                        [1, 1, 0, 1],
+                        [1, 0, 0, 0]])
+
+    candidates = create_solution_candidates(input_grid, output_grid)
+    target_candidates = [[{"name": "move_all_shapes", "args": [1, 0]}]]
+    assert sorted_equal(candidates, target_candidates)
+
+    input_grid = Grid([[0, 0, 0, 0],
+                       [1, 0, 0, 1],
+                       [0, 0, 0, 0]])
+    # move 1 row up
+    output_grid = Grid([[1, 0, 0, 1],
+                        [0, 0, 0, 0],
+                        [0, 0, 0, 0]])
+
+    candidates = create_solution_candidates(input_grid, output_grid)
+    target_candidates = [[{"name": "move_all_shapes", "args": [-1, 0]}]]
+    assert sorted_equal(candidates, target_candidates)
+
+# TODO: test for nuance movement
+def xtest_create_solution_candidates_for_nuance_movement():
+    input_grid = Grid([[1, 1, 0, 0],
+                       [1, 0, 1, 0],
+                       [0, 0, 0, 0]])
+
+    output_grid = Grid([[0, 0, 0, 0],
+                        [1, 1, 0, 0],
+                        [1, 0, 1, 0]])
+    candidates = create_solution_candidates(input_grid, output_grid)
+    RED_COLOR = 1
+    BLUE_COLOR = 2
+    target_candidates = [
+        [
+            [
+                {"name": "move_shape", "args": (RED_COLOR, 1, 0)},
+                {"name": "move_shape", "args": (BLUE_COLOR, 1, 1)}
+            ]
+        ]
+    ]
+    assert sorted_equal(candidates, target_candidates)
 
 # def test_get_universal_solution():
 #     train_examples = [Example(Grid([[1, 0]]), Grid([[0, 1]]))]
